@@ -204,8 +204,7 @@
 
     function loadCustomLayers() {
         if (!map.getSource('zonasi')) {
-            // Path diubah ke folder GEOJESN/GEOJESN
-            map.addSource('zonasi', { type: 'geojson', data: './GEOJESN/GEOJESN/Zonasi RDTR.geojson' });
+            map.addSource('zonasi', { type: 'geojson', data: './GEOJESN/GEOJESN_FIX/Zonasi RDTR.geojson' });
             map.addLayer({
                 'id': 'Zonasi RDTR', 'type': 'fill', 'source': 'zonasi',
                 'layout': { 'visibility': state.layers['Zonasi RDTR'] ? 'visible' : 'none' },
@@ -214,8 +213,7 @@
         }
 
         if (!map.getSource('lahan')) {
-            // Path diubah ke folder GEOJESN/GEOJESN
-            map.addSource('lahan', { type: 'geojson', data: './GEOJESN/GEOJESN/Bidang Lahan.geojson' });
+            map.addSource('lahan', { type: 'geojson', data: './GEOJESN/GEOJESN_FIX/Bidang Lahan.geojson' });
             map.addLayer({
                 'id': 'Bidang Lahan', 'type': 'line', 'source': 'lahan',
                 'layout': { 'visibility': state.layers['Bidang Lahan'] ? 'visible' : 'none' },
@@ -224,8 +222,7 @@
         }
 
         if (!map.getSource('batas')) {
-            // Path diubah ke folder GEOJESN/GEOJESN
-            map.addSource('batas', { type: 'geojson', data: './GEOJESN/GEOJESN/Batas Penelitian.geojson' });
+            map.addSource('batas', { type: 'geojson', data: './GEOJESN/GEOJESN_FIX/Batas Penelitian.geojson' });
             map.addLayer({
                 'id': 'Batas Penelitian', 'type': 'line', 'source': 'batas',
                 'layout': { 'visibility': state.layers['Batas Penelitian'] ? 'visible' : 'none' },
@@ -234,8 +231,7 @@
         }
 
         if (!map.getSource('bangunan')) {
-            // Path diubah ke folder GEOJESN/GEOJESN
-            map.addSource('bangunan', { type: 'geojson', data: './GEOJESN/GEOJESN/Bangunan_Kajian.geojson' });
+            map.addSource('bangunan', { type: 'geojson', data: './GEOJESN/GEOJESN_FIX/Bangunan_Kajian.geojson' });
             map.addLayer({
                 'id': 'Bangunan 3D', 'type': 'fill-extrusion', 'source': 'bangunan',
                 'layout': { 'visibility': state.layers['Bangunan 3D'] ? 'visible' : 'none' },
@@ -289,8 +285,7 @@
         loadCustomLayers();
 
         if (state.isInitialLoad) {
-            // Path Auto-Zoom diubah ke folder GEOJESN/GEOJESN
-            fetch('./GEOJESN/GEOJESN/Batas Penelitian.geojson')
+            fetch('./GEOJESN/GEOJESN_FIX/Batas Penelitian.geojson')
                 .then(res => res.json())
                 .then(data => {
                     const bbox = turf.bbox(data);
