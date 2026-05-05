@@ -176,11 +176,16 @@
         isInitialLoad: true
     };
 
+    // ==========================================
+    // INISIALISASI PETA DENGAN PERSPEKTIF 3D
+    // ==========================================
     const map = new maplibregl.Map({
         container: 'map',
         style: document.getElementById('basemap-selector').value,
-        center: [107.61, -6.91], // Kordinat default Bandung sbg fallback
-        zoom: 12,        
+        center: [107.61, -6.91], // Kordinat default Bandung
+        zoom: 14,                // Zoom sedikit lebih dekat
+        pitch: 60,               // <--- INI KUNCINYA: Kamera langsung miring 60 derajat
+        bearing: -20,            // <--- Kamera sedikit diputar
         antialias: true
     });
 
@@ -248,6 +253,7 @@
                 .then(res => res.json())
                 .then(data => {
                     const bbox = turf.bbox(data);
+                    // Pastikan auto-zoom mempertahankan kemiringan 3D
                     map.fitBounds(bbox, { padding: 50, pitch: 60, bearing: -20, duration: 2500 });
                 }).catch(err => console.error('Error Auto-Zoom:', err));
             state.isInitialLoad = false;
@@ -294,24 +300,20 @@
     // ==========================================
     const popup = new maplibregl.Popup({ closeButton: true, closeOnClick: true, maxWidth: '320px' });
 
-    // Helper untuk memformat angka jadi rapi (10000.5 -> 10.000,5)
     const formatNum = (num) => num ? parseFloat(num).toLocaleString('id-ID', {maximumFractionDigits: 2}) : '-';
     
-    // Helper status warna
     const formatStatus = (val) => {
         if (!val || val === '-') return '-';
         return val === 'Sesuai' ? `<span class="tag-sesuai">SESUAI</span>` : `<span class="tag-tidak">TIDAK SESUAI</span>`;
     };
 
     map.on('click', (e) => {
-        // Cek layer mana yang terklik dari urutan teratas (Bangunan -> Lahan -> Zonasi -> Batas)
         const features = map.queryRenderedFeatures(e.point, {
             layers: ['Bangunan 3D', 'Bidang Lahan', 'Zonasi RDTR', 'Batas Penelitian']
         });
 
         if (!features.length) return;
 
-        // Ambil fitur paling atas saja agar popup tidak menumpuk spam
         const feature = features[0];
         const props = feature.properties;
         const layerId = feature.layer.id;
