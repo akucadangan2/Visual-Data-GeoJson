@@ -2,7 +2,7 @@
 <html lang="id">
 <head>
     <meta charset="utf-8">
-    <title>Visualisasi 3D WebGIS - RDTR Bandung</title>
+    <title>Visualisasi 3D WebGIS LOD2 - RDTR Bandung</title>
     <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
     
     <script src="https://unpkg.com/maplibre-gl@3.x/dist/maplibre-gl.js"></script>
@@ -126,9 +126,9 @@
     <label class="item-row"><input type="checkbox" id="chk-batas" checked> Batas Penelitian</label>
     <label class="item-row"><input type="checkbox" id="chk-zonasi"> Zonasi RDTR</label>
     <label class="item-row"><input type="checkbox" id="chk-lahan"> Bidang Lahan</label>
-    <label class="item-row"><input type="checkbox" id="chk-bangunan"> Bangunan Kajian (3D)</label>
+    <label class="item-row"><input type="checkbox" id="chk-bangunan" checked> Bangunan LOD2 (3D)</label>
 
-    <div id="status-radios">
+    <div id="status-radios" style="display: block;">
         <div style="font-size: 11px; color:#777; margin-bottom: 6px; font-weight: bold;">TEMA WARNA BANGUNAN:</div>
         <label class="item-row"><input type="radio" name="status" value="default" checked> Warna Default</label>
         <label class="item-row"><input type="radio" name="status" value="STS_KDB"> Status KDB</label>
@@ -153,8 +153,8 @@
         <div class="item-row"><span class="legend-line" style="background-color: #386641;"></span> Batas Persil (Hak Tanah)</div>
     </div>
     
-    <div id="legenda-bangunan" class="legend-section">
-        <div class="legend-title">Bangunan (KDB/KLB/KDH)</div>
+    <div id="legenda-bangunan" class="legend-section" style="display: block;">
+        <div class="legend-title">Bangunan LOD2</div>
         <div class="item-row"><span class="legend-box" style="background-color: #28a745;"></span> Memenuhi Ketentuan (Sesuai)</div>
         <div class="item-row"><span class="legend-box" style="background-color: #dc3545;"></span> Melanggar (Tidak Sesuai)</div>
         <div class="item-row"><span class="legend-box" style="background-color: #b5c99a;"></span> Mode Visual Default</div>
@@ -170,26 +170,26 @@
             'Batas Penelitian': true, 
             'Zonasi RDTR': false,
             'Bidang Lahan': false,
-            'Bangunan 3D': false
+            'Bangunan 3D': true // Dibuat true dari awal agar langsung terlihat
         },
         bangunanColorProp: 'default',
         isInitialLoad: true
     };
 
     // ==========================================
-    // INISIALISASI PETA DENGAN PERSPEKTIF 3D
+    // INISIALISASI PETA DENGAN PERSPEKTIF 3D (LOD2)
     // ==========================================
     const map = new maplibregl.Map({
         container: 'map',
         style: document.getElementById('basemap-selector').value,
         center: [107.61, -6.91], // Kordinat default Bandung
-        zoom: 14,                // Zoom sedikit lebih dekat
-        pitch: 60,               // <--- INI KUNCINYA: Kamera langsung miring 60 derajat
-        bearing: -20,            // <--- Kamera sedikit diputar
-        antialias: true
+        zoom: 16,                // Zoom didekatkan untuk melihat detail atap
+        pitch: 65,               // Kamera dimiringkan lebih tajam untuk LOD2
+        bearing: -35,            // Kamera diputar
+        antialias: true          // Wajib true agar tepi faset atap 3D tidak bergerigi
     });
 
-    map.addControl(new maplibregl.NavigationControl(), 'top-right');
+    map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right');
 
     function getBangunanColor() {
         if (state.bangunanColorProp === 'default') return '#b5c99a';
@@ -237,15 +237,51 @@
                 'layout': { 'visibility': state.layers['Bangunan 3D'] ? 'visible' : 'none' },
                 'paint': {
                     'fill-extrusion-color': getBangunanColor(),
-                    'fill-extrusion-height': ['coalesce', ['get', 'measuredHe'], ['get', 'HMAX'], 10],
-                    'fill-extrusion-base': 0,
-                    'fill-extrusion-opacity': 0.95
+                    
+                    // KUNCI LOD2: Elevasi Puncak (MAX_HEIGHT)
+                    'fill-extrusion-height': [
+                        'coalesce', 
+                        ['get', 'MAX_HEIGHT'], 
+                        ['get', 'measuredHe'], 
+                        ['get', 'HMAX'], 
+                        10
+                    ],
+                    
+                    // KUNCI LOD2: Elevasi Dasar (MIN_HEIGHT) agar atap bisa "menggantung"
+                    'fill-extrusion-base': [
+                        'coalesce',
+                        ['get', 'MIN_HEIGHT'],
+                        0 // Default 0 jika atribut MIN_HEIGHT tidak ada (untuk badan bangunan)
+                    ],
+                    
+                    'fill-extrusion-opacity': 0.95,
+                    
+                    // KUNCI VISUAL LOD2: Mengaktifkan bayangan 3D (shading) pada lekukan atap
+                    'fill-extrusion-vertical-gradient': true
                 }
             });
         }
     }
 
     map.on('style.load', () => {
+        // SETTING PENCAHAYAAN 3D & LANGIT (Untuk mempertegas bentuk Atap LOD2)
+        map.setLight({
+            'anchor': 'viewport',
+            'color': '#ffffff',
+            'intensity': 0.45,
+            'position': [1.5, 90, 80] // Arah cahaya agar sudut atap berbayang
+        });
+
+        map.addLayer({
+            'id': 'sky',
+            'type': 'sky',
+            'paint': {
+                'sky-type': 'atmosphere',
+                'sky-atmosphere-sun': [0.0, 0.0],
+                'sky-atmosphere-sun-intensity': 15
+            }
+        });
+
         loadCustomLayers();
 
         if (state.isInitialLoad) {
@@ -253,8 +289,8 @@
                 .then(res => res.json())
                 .then(data => {
                     const bbox = turf.bbox(data);
-                    // Pastikan auto-zoom mempertahankan kemiringan 3D
-                    map.fitBounds(bbox, { padding: 50, pitch: 60, bearing: -20, duration: 2500 });
+                    // Pertahankan pitch 65 derajat saat auto-zoom agar LOD2 langsung terlihat
+                    map.fitBounds(bbox, { padding: 50, pitch: 65, bearing: -35, duration: 2500 });
                 }).catch(err => console.error('Error Auto-Zoom:', err));
             state.isInitialLoad = false;
         }
@@ -265,6 +301,12 @@
     // ==========================================
     document.getElementById('basemap-selector').addEventListener('change', function(e) {
         map.setStyle(e.target.value); 
+        // Re-apply light and sky when style changes
+        map.once('style.load', () => {
+            map.setLight({ 'anchor': 'viewport', 'color': '#ffffff', 'intensity': 0.45, 'position': [1.5, 90, 80] });
+            map.addLayer({ 'id': 'sky', 'type': 'sky', 'paint': { 'sky-type': 'atmosphere' }});
+            loadCustomLayers();
+        });
     });
 
     function setupToggle(checkboxId, layerId, legendId) {
@@ -296,7 +338,7 @@
     });
 
     // ==========================================
-    // INTERAKSI POPUP (SUPER SMART CLICK HANDLER)
+    // INTERAKSI POPUP
     // ==========================================
     const popup = new maplibregl.Popup({ closeButton: true, closeOnClick: true, maxWidth: '320px' });
 
@@ -321,15 +363,19 @@
         let html = '';
 
         if (layerId === 'Bangunan 3D') {
+            // Deteksi visual di popup apakah ini meng-klik area Badan Bangunan atau Atap
+            const bagian = (props.MIN_HEIGHT && props.MIN_HEIGHT > 0) ? 'Faset Atap (Roof)' : 'Badan Bangunan (Body)';
+            
             html = `
                 <div class="popup-header">
-                    <div class="popup-title">${props.NAMOBJ || 'Bangunan'}</div>
-                    <div class="popup-subtitle">${props.REMARK || 'Fungsi tidak tersedia'}</div>
+                    <div class="popup-title">${props.NAMOBJ || 'Bangunan LOD2'}</div>
+                    <div class="popup-subtitle">${props.REMARK || 'Fungsi tidak tersedia'} | ${bagian}</div>
                 </div>
                 <table class="popup-table">
                     <tr><td>NIB / Status Hak</td><td>: ${props.NIB || '-'} / <span class="badge-info">${props.STSKTN || '-'}</span></td></tr>
                     <tr><td>Zonasi</td><td>: ${props.NM_ZONA || '-'} (${props.KD_ZONA || '-'})</td></tr>
-                    <tr><td>Tinggi Bangunan</td><td>: ${formatNum(props.measuredHe || props.HMAX)} Meter</td></tr>
+                    <tr><td>Tinggi Puncak Atap</td><td>: ${formatNum(props.MAX_HEIGHT || props.measuredHe || props.HMAX)} Meter</td></tr>
+                    <tr><td>Tinggi Dasar Atap</td><td>: ${formatNum(props.MIN_HEIGHT || 0)} Meter</td></tr>
                     <tr><td>Luas Lahan (m²)</td><td>: ${formatNum(props.LUAS_TNH)}</td></tr>
                     <tr><td>Luas Bangunan (m²)</td><td>: ${formatNum(props.LUAS_BGN)}</td></tr>
                     <tr><td colspan="2" style="padding-top:8px; border-bottom:none;"><strong>Evaluasi Tata Ruang:</strong></td></tr>
