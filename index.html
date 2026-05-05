@@ -42,29 +42,68 @@
         .legend-box { width: 14px; height: 14px; border-radius: 3px; margin-right: 8px; display: inline-block; vertical-align: middle; border: 1px solid rgba(0,0,0,0.2); }
         .legend-line { width: 16px; height: 3px; margin-right: 8px; display: inline-block; vertical-align: middle; }
 
-        /* Tooltip Mengambang (Hover) yang Responsif */
+        /* Tooltip Panel Klik yang Responsif & Bisa di-Scroll */
         #hover-tooltip {
             position: absolute;
             z-index: 10;
             background: rgba(255, 255, 255, 0.98);
             border-radius: 6px;
             padding: 16px;
-            box-shadow: 0 5px 20px rgba(0,0,0,0.3);
-            min-width: 260px;
-            pointer-events: none; /* Penting agar tidak mengganggu klik/hover */
+            box-shadow: 0 5px 25px rgba(0,0,0,0.4);
+            width: 320px;
+            /* PENTING: pointer-events auto agar isi panel bisa diklik dan discroll */
+            pointer-events: auto; 
             display: none;
             font-family: 'Segoe UI', Tahoma, sans-serif;
             border: 1px solid #ddd;
-            transition: left 0.05s linear, top 0.05s linear;
         }
 
-        .popup-header { margin: 0 0 8px; color: #2c3e50; border-bottom: 1px solid #eee; padding-bottom: 6px; }
-        .popup-title { font-size: 14px; font-weight: bold; margin: 0 0 2px 0; }
+        /* Tombol Close (X) */
+        .close-btn {
+            position: absolute;
+            top: 12px;
+            right: 15px;
+            font-size: 22px;
+            font-weight: bold;
+            color: #95a5a6;
+            cursor: pointer;
+            line-height: 1;
+            transition: color 0.2s;
+        }
+        .close-btn:hover {
+            color: #e74c3c;
+        }
+
+        .tooltip-content {
+            max-height: 300px; /* Batas tinggi untuk memicu scroll */
+            overflow-y: auto;
+            padding-right: 5px;
+            margin-top: 5px;
+        }
+
+        .tooltip-content::-webkit-scrollbar { width: 6px; }
+        .tooltip-content::-webkit-scrollbar-thumb { background: #bdc3c7; border-radius: 4px; }
+        .tooltip-content::-webkit-scrollbar-track { background: #f1f2f6; }
+
+        .section-title {
+            font-size: 11px;
+            font-weight: 700;
+            color: #2980b9;
+            margin-top: 12px;
+            margin-bottom: 4px;
+            padding-bottom: 2px;
+            border-bottom: 1px solid #ecf0f1;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .popup-header { margin: 0 0 8px; color: #2c3e50; border-bottom: 1px solid #eee; padding-bottom: 8px; padding-right: 15px; }
+        .popup-title { font-size: 14px; font-weight: bold; margin: 0 0 2px 0; line-height: 1.2; }
         .popup-subtitle { color: #7f8c8d; font-size: 11px; font-style: italic; margin: 0;}
         .popup-table { width: 100%; border-collapse: collapse; font-size: 12px; margin-top: 5px;}
         .popup-table tr { border-bottom: 1px solid #f1f2f6; }
         .popup-table td { padding: 5px 2px; vertical-align: top;}
-        .popup-table td:first-child { font-weight: 600; color: #34495e; width: 40%;}
+        .popup-table td:first-child { font-weight: 600; color: #34495e; width: 45%;}
         
         .tag-sesuai { display: inline-block; background: #28a745; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold;}
         .tag-tidak { display: inline-block; background: #dc3545; color: white; padding: 2px 6px; border-radius: 3px; font-size: 10px; font-weight: bold;}
@@ -85,7 +124,7 @@
     <label class="item-row"><input type="checkbox" id="chk-batas" checked> Batas Penelitian</label>
     <label class="item-row"><input type="checkbox" id="chk-zonasi"> Zonasi RDTR</label>
     <label class="item-row"><input type="checkbox" id="chk-lahan"> Bidang Lahan</label>
-    <label class="item-row"><input type="checkbox" id="chk-bangunan" checked> Bangunan LOD2 (Sorot Interaktif)</label>
+    <label class="item-row"><input type="checkbox" id="chk-bangunan" checked> Bangunan LOD2 (Bisa Diklik)</label>
 
     <div id="status-radios" style="display: block;">
         <div style="font-size: 11px; color:#777; margin-bottom: 6px; font-weight: bold;">TEMA WARNA BANGUNAN:</div>
@@ -117,7 +156,7 @@
     </div>
 </div>
 
-<!-- Kotak Tooltip Mengambang -->
+<!-- Kotak Tooltip Interaktif -->
 <div id="hover-tooltip"></div>
 
 <div id="map"></div>
@@ -144,6 +183,11 @@
         return val.toLowerCase().includes('tidak') ? `<span class="tag-tidak">TIDAK SESUAI</span>` : `<span class="tag-sesuai">SESUAI</span>`;
     };
 
+    // Fungsi global untuk menutup tooltip dari tombol X
+    window.closeTooltip = function() {
+        tooltipElem.style.display = 'none';
+    };
+
     // ==========================================
     // DECK.GL: LOD2 RENDERER
     // ==========================================
@@ -159,8 +203,6 @@
         fetch('./GEOJESN/GEOJESN_FIX/Bangunan_Kajian.geojson')
             .then(res => res.json())
             .then(data => {
-                // KOREKSI ELEVASI OTOMATIS DENGAN TURF.JS (Sangat Akurat)
-                // Ini akan memastikan bangunan menyentuh tanah dan tidak terbang ke langit
                 let minZ = Infinity;
                 turf.coordEach(data, (coord) => {
                     if (coord.length > 2 && coord[2] < minZ) {
@@ -170,7 +212,6 @@
 
                 if (minZ === Infinity) minZ = 0;
 
-                // Turunkan semua titik menempel ke tanah
                 turf.coordEach(data, (coord) => {
                     if (coord.length > 2) {
                         coord[2] -= minZ;
@@ -191,7 +232,6 @@
             data: cachedBangunanData,
             visible: state.layers['Bangunan 3D'],
             
-            // PENGATURAN MATERIAL SOLID & HIGHLIGHT
             opacity: 1.0, 
             stroked: true,
             filled: true,
@@ -200,56 +240,99 @@
             getLineColor: [255, 255, 255, 100], 
             lineWidthMinPixels: 1,
 
-            // PENGATURAN WARNA SOLID DINAMIS
             getFillColor: d => {
                 if (activeProp === 'default') {
-                    return [149, 165, 166, 255]; // Abu-abu modern solid
+                    return [149, 165, 166, 255]; 
                 }
                 const val = d.properties[activeProp];
                 if (val && val.toLowerCase().includes('tidak')) {
-                    return [231, 76, 60, 255]; // Merah Solid 
+                    return [231, 76, 60, 255]; 
                 } else if (val && val.toLowerCase().includes('sesuai')) {
-                    return [46, 204, 113, 255]; // Hijau Solid
+                    return [46, 204, 113, 255]; 
                 }
-                return [189, 195, 199, 255]; // Default fallback abu-abu terang
+                return [189, 195, 199, 255]; 
             },
             
-            // WAJIB: Memaksa Deck.gl mengubah warna saat radio button ditekan
             updateTriggers: {
                 getFillColor: [activeProp] 
             },
 
-            // --- FITUR BARU: SOROT OTOMATIS & TOOLTIP (GANTI KLIK) ---
+            // --- INTERAKSI MOUSE & KLIK ---
             pickable: true,
-            autoHighlight: true, // Otomatis menyala saat disorot kursor
-            highlightColor: [241, 196, 15, 200], // Menyala warna kuning terang
+            autoHighlight: true, 
+            highlightColor: [241, 196, 15, 200], 
             
-            onHover: (info) => {
+            // Event klik memunculkan informasi lengkap dan menahannya
+            onClick: (info) => {
                 if (info.object) {
                     const props = info.object.properties;
                     const bagian = (props.MIN_HEIGHT && props.MIN_HEIGHT > 0) ? 'Faset Atap (Roof)' : 'Badan Bangunan (Body)';
                     
                     tooltipElem.innerHTML = `
+                        <span class="close-btn" onclick="window.closeTooltip()">&times;</span>
+                        
                         <div class="popup-header">
                             <div class="popup-title">${props.NAMOBJ || 'Bangunan LOD2'}</div>
                             <div class="popup-subtitle">${props.REMARK || 'Fungsi tidak tersedia'} | ${bagian}</div>
                         </div>
-                        <table class="popup-table">
-                            <tr><td>NIB / Status Hak</td><td>: ${props.NIB || '-'} / <span class="badge-info">${props.STSKTN || '-'}</span></td></tr>
-                            <tr><td>Zonasi</td><td>: ${props.NM_ZONA || '-'} (${props.KD_ZONA || '-'})</td></tr>
-                            <tr><td>Tinggi Puncak</td><td>: ${formatNum(props.MAX_HEIGHT || props.measuredHe || props.HMAX)} m</td></tr>
-                            <tr><td colspan="2" style="padding-top:8px; border-bottom:none;"><strong>Evaluasi Ruang:</strong></td></tr>
-                            <tr><td>KDB (Maks: ${props.KDB_MAX}%)</td><td>: ${formatNum(props.KDB)}% ${formatStatus(props.STS_KDB)}</td></tr>
-                            <tr><td>KLB (Maks: ${props.KLB_MAX})</td><td>: ${formatNum(props.KLB)} ${formatStatus(props.STS_KLB)}</td></tr>
-                            <tr><td>KDH (Min: ${props.KDH_MIN}%)</td><td>: ${formatNum(props.KDH)}% ${formatStatus(props.STS_KDH)}</td></tr>
-                        </table>
+                        
+                        <div class="tooltip-content">
+                            <div class="section-title">Identitas & Administrasi</div>
+                            <table class="popup-table">
+                                <tr><td>ID / NIB</td><td>: ${props.gml_id || '-'} / ${props.NIB || '-'}</td></tr>
+                                <tr><td>Lokasi</td><td>: Kec. ${props.WADMKC || '-'}, ${props.WADMKK || '-'}</td></tr>
+                                <tr><td>Status Hak</td><td>: <span class="badge-info">${props.STSKTN || '-'}</span></td></tr>
+                            </table>
+
+                            <div class="section-title">Dimensi Fisik Bangunan</div>
+                            <table class="popup-table">
+                                <tr><td>Luas Tanah</td><td>: ${formatNum(props.LUAS_TNH)} m²</td></tr>
+                                <tr><td>Luas Bangunan</td><td>: ${formatNum(props.LUAS_BGN)} m²</td></tr>
+                                <tr><td>Total Luas Lantai</td><td>: ${formatNum(props.T_LS_LT)} m²</td></tr>
+                                <tr><td>Jumlah Lantai</td><td>: ${props.JML_LT || '-'} Lt (@ ${formatNum(props.T_LANTAI)} m)</td></tr>
+                                <tr><td>Tinggi Puncak</td><td>: ${formatNum(props.MAX_HEIGHT || props.measuredHe || props.HMAX)} m</td></tr>
+                            </table>
+
+                            <div class="section-title">Zonasi & Tata Ruang</div>
+                            <table class="popup-table">
+                                <tr><td>Peraturan</td><td>: ${props.PERATUR || '-'}</td></tr>
+                                <tr><td>Zona Dasar</td><td>: ${props.NM_ZONA || '-'} (${props.KD_ZONA || '-'})</td></tr>
+                                <tr><td>Sub Zona</td><td>: ${props.NM_SUBZON || '-'} (${props.KD_SUBZON || '-'})</td></tr>
+                            </table>
+
+                            <div class="section-title">Evaluasi Intensitas Pemanfaatan Ruang</div>
+                            <table class="popup-table">
+                                <tr><td>KDB (Maks: ${props.KDB_MAX}%)</td><td>: ${formatNum(props.KDB)}% ${formatStatus(props.STS_KDB)}</td></tr>
+                                <tr><td>KLB (Maks: ${props.KLB_MAX})</td><td>: ${formatNum(props.KLB)} ${formatStatus(props.STS_KLB)}</td></tr>
+                                <tr><td>KDH (Min: ${props.KDH_MIN}%)</td><td>: ${formatNum(props.KDH)}% ${formatStatus(props.STS_KDH)}</td></tr>
+                                <tr><td>Capaian RTH</td><td>: ${formatNum(props.RTH)} m²</td></tr>
+                            </table>
+                        </div>
                     `;
-                    // Posisikan tooltip mengikuti kursor tikus
+                    
                     tooltipElem.style.display = 'block';
-                    tooltipElem.style.left = (info.x + 15) + 'px';
-                    tooltipElem.style.top = (info.y + 15) + 'px';
+                    
+                    // Posisikan saat diklik
+                    const offset = 15;
+                    let leftPos = info.x + offset;
+                    let topPos = info.y + offset;
+                    
+                    if (leftPos + 320 > window.innerWidth) { leftPos = info.x - 335; }
+                    if (topPos + 360 > window.innerHeight) { topPos = window.innerHeight - 375; }
+                    
+                    tooltipElem.style.left = leftPos + 'px';
+                    tooltipElem.style.top = topPos + 'px';
                 } else {
+                    // Klik di luar bangunan akan menutup tooltip otomatis
                     tooltipElem.style.display = 'none';
+                }
+            },
+            // Hanya ganti kursor saat sorot, panel tidak lagi muncul saat hover
+            onHover: (info) => {
+                if (info.object) {
+                    map.getCanvas().style.cursor = 'pointer';
+                } else {
+                    map.getCanvas().style.cursor = '';
                 }
             }
         });
@@ -320,7 +403,6 @@
     setupToggle('chk-lahan', 'Bidang Lahan', 'legenda-lahan');
     setupToggle('chk-bangunan', 'Bangunan 3D', 'legenda-bangunan');
 
-    // MENDENGARKAN KLIK RADIO BUTTON WARNA
     document.querySelectorAll('input[name="status"]').forEach(radio => {
         radio.addEventListener('change', (e) => {
             state.bangunanColorProp = e.target.value;
