@@ -11,7 +11,6 @@
     
     <!-- Pustaka 3D Canggih untuk LOD2 -->
     <script src="https://unpkg.com/deck.gl@latest/dist.min.js"></script>
-    
     <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
 
     <style>
@@ -33,7 +32,6 @@
 
         .item-row { display: flex; align-items: center; margin-bottom: 10px; font-size: 13px; color: #333; cursor: pointer; }
         .item-row input, .item-row select { margin-right: 10px; cursor: pointer; }
-
         #basemap-selector { width: 100%; padding: 7px; border-radius: 4px; border: 1px solid #ccc; margin-bottom: 18px; font-size: 12px; background-color: #fff; }
         #status-radios { margin-left: 25px; margin-bottom: 15px; padding-left: 10px; border-left: 2px solid #ddd; display: none; }
         .legend-section { margin-top: 10px; padding: 10px; background: #f8f9fa; border-radius: 6px; border: 1px solid #e9ecef; display: none; }
@@ -85,20 +83,17 @@
         <div class="legend-title">Batas Penelitian</div>
         <div class="item-row"><span class="legend-line" style="background-color: #bc4749; height: 4px;"></span> Kawasan Studi</div>
     </div>
-    
     <div id="legenda-zonasi" class="legend-section">
         <div class="legend-title">Zonasi RDTR</div>
         <div class="item-row"><span class="legend-box" style="background-color: #f2e8cf;"></span> Area Zonasi Tata Ruang</div>
     </div>
-    
     <div id="legenda-lahan" class="legend-section">
         <div class="legend-title">Bidang Lahan</div>
         <div class="item-row"><span class="legend-line" style="background-color: #386641;"></span> Batas Persil (Hak Tanah)</div>
     </div>
-    
     <div id="legenda-bangunan" class="legend-section" style="display: block;">
-        <div class="legend-title">Bangunan LOD2</div>
-        <div class="item-row"><span class="legend-box" style="background-color: #28a745;"></span> Memenuhi Ketentuan (Sesuai)</div>
+        <div class="legend-title">Evaluasi Bangunan</div>
+        <div class="item-row"><span class="legend-box" style="background-color: #28a745;"></span> Memenuhi (Sesuai)</div>
         <div class="item-row"><span class="legend-box" style="background-color: #dc3545;"></span> Melanggar (Tidak Sesuai)</div>
         <div class="item-row"><span class="legend-box" style="background-color: #b5c99a;"></span> Mode Visual Default</div>
     </div>
@@ -108,24 +103,14 @@
 
 <script>
     const state = {
-        layers: {
-            'Batas Penelitian': true, 
-            'Zonasi RDTR': false,
-            'Bidang Lahan': false,
-            'Bangunan 3D': true
-        },
+        layers: { 'Batas Penelitian': true, 'Zonasi RDTR': false, 'Bidang Lahan': false, 'Bangunan 3D': true },
         bangunanColorProp: 'default',
         isInitialLoad: true
     };
 
     const map = new maplibregl.Map({
-        container: 'map',
-        style: document.getElementById('basemap-selector').value,
-        center: [107.61, -6.91], 
-        zoom: 16,                
-        pitch: 65,               
-        bearing: -35,            
-        antialias: true          
+        container: 'map', style: document.getElementById('basemap-selector').value,
+        center: [107.61, -6.91], zoom: 16, pitch: 65, bearing: -35, antialias: true          
     });
 
     map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), 'top-right');
@@ -134,57 +119,44 @@
     const formatNum = (num) => num ? parseFloat(num).toLocaleString('id-ID', {maximumFractionDigits: 2}) : '-';
     const formatStatus = (val) => {
         if (!val || val === '-') return '-';
-        return val === 'Sesuai' ? `<span class="tag-sesuai">SESUAI</span>` : `<span class="tag-tidak">TIDAK SESUAI</span>`;
+        return val.toLowerCase().includes('tidak') ? `<span class="tag-tidak">TIDAK SESUAI</span>` : `<span class="tag-sesuai">SESUAI</span>`;
     };
 
     // ==========================================
-    // INTEGRASI DECK.GL UNTUK RENDER LOD2 SEJATI
+    // DECK.GL: LOD2 RENDERER
     // ==========================================
     let deckOverlay;
-    let cachedBangunanData = null; // Menyimpan data GeoJSON di memory agar tidak download & hitung ulang
+    let cachedBangunanData = null; 
 
     function renderDeckGL() {
-        // Jika data sudah di-download & dikoreksi, langsung render saja (cepat)
         if (cachedBangunanData) {
             updateDeckLayer();
             return;
         }
 
-        // Jika belum ada data, ambil dari file lalu koreksi elevasinya
         fetch('./GEOJESN/GEOJESN_FIX/Bangunan_Kajian.geojson')
             .then(res => res.json())
             .then(data => {
+                // KOREKSI ELEVASI: Penurunan Bangunan Melayang
                 let minZ = Infinity;
-                
-                // 1. Cari elevasi paling rendah di seluruh data (permukaan tanah)
-                data.features.forEach(feature => {
-                    const coords = feature.geometry.coordinates;
+                data.features.forEach(f => {
                     const findMinZ = (arr) => {
-                        if (typeof arr[0] === 'number') {
-                            if (arr.length > 2 && arr[2] < minZ) minZ = arr[2];
-                        } else {
-                            arr.forEach(findMinZ);
-                        }
+                        if (typeof arr[0] === 'number') { if (arr.length > 2 && arr[2] < minZ) minZ = arr[2]; } 
+                        else arr.forEach(findMinZ);
                     };
-                    if(coords) findMinZ(coords);
+                    if(f.geometry.coordinates) findMinZ(f.geometry.coordinates);
                 });
 
                 if (minZ === Infinity) minZ = 0;
 
-                // 2. Turunkan semua koordinat Z sebesar minZ agar menempel di peta dasar
-                data.features.forEach(feature => {
-                    const coords = feature.geometry.coordinates;
+                data.features.forEach(f => {
                     const offsetZ = (arr) => {
-                        if (typeof arr[0] === 'number') {
-                            if (arr.length > 2) arr[2] -= minZ;
-                        } else {
-                            arr.forEach(offsetZ);
-                        }
+                        if (typeof arr[0] === 'number') { if (arr.length > 2) arr[2] -= minZ; } 
+                        else arr.forEach(offsetZ);
                     };
-                    if(coords) offsetZ(coords);
+                    if(f.geometry.coordinates) offsetZ(f.geometry.coordinates);
                 });
 
-                // 3. Simpan ke memory lalu gambar
                 cachedBangunanData = data;
                 updateDeckLayer();
             })
@@ -192,25 +164,48 @@
     }
 
     function updateDeckLayer() {
+        // Tentukan properti evaluasi yang sedang aktif (misal: 'STS_KDB')
+        const activeProp = state.bangunanColorProp;
+
         const bangunanLayer = new deck.GeoJsonLayer({
             id: 'bangunan-lod2-deck',
             data: cachedBangunanData,
             visible: state.layers['Bangunan 3D'],
-            opacity: 0.95,
+            
+            // PENGATURAN MATERIAL SOLID (TIDAK TRANSPARAN)
+            opacity: 1.0, 
             stroked: true,
             filled: true,
-            extruded: false, // Mempertahankan atap miring LOD2
+            extruded: false, 
             wireframe: true,
+            getLineColor: [100, 100, 100, 150], // Garis tepi abu-abu tipis
+            lineWidthMinPixels: 1,
             
+            // PENGATURAN WARNA DINAMIS
             getFillColor: d => {
-                const prop = state.bangunanColorProp;
-                if (prop === 'default') return [181, 201, 154, 255]; 
-                const val = d.properties[prop];
-                if (val === 'Sesuai') return [40, 167, 69, 255];     
-                if (val === 'Tidak Sesuai') return [220, 53, 69, 255]; 
-                return [181, 201, 154, 255];
+                if (activeProp === 'default') {
+                    // Warna krem/hijau pastel solid untuk mode default
+                    return [181, 201, 154, 255]; 
+                }
+
+                // Ambil nilai evaluasi dari data GeoJSON
+                const val = d.properties[activeProp];
+                
+                // Beri warna berdasarkan nilai. Gunakan toLowerCase() agar kebal terhadap Typo data (Misal 'sesuai' vs 'Sesuai')
+                if (val && val.toLowerCase().includes('tidak')) {
+                    return [220, 53, 69, 255]; // Merah Solid (Melanggar)
+                } else if (val && val.toLowerCase().includes('sesuai')) {
+                    return [40, 167, 69, 255]; // Hijau Solid (Aman)
+                }
+                
+                return [200, 200, 200, 255]; // Abu-abu Solid (Jika data evaluasi kosong)
             },
-            getLineColor: [255, 255, 255, 100],
+            
+            // REFRESH WARNA KETIKA RADIO BUTTON DIKLIK
+            updateTriggers: {
+                getFillColor: activeProp 
+            },
+
             pickable: true,
             onClick: (info) => {
                 if (info.object) {
@@ -226,10 +221,10 @@
                             <tr><td>NIB / Status Hak</td><td>: ${props.NIB || '-'} / <span class="badge-info">${props.STSKTN || '-'}</span></td></tr>
                             <tr><td>Zonasi</td><td>: ${props.NM_ZONA || '-'} (${props.KD_ZONA || '-'})</td></tr>
                             <tr><td>Tinggi Puncak Atap</td><td>: ${formatNum(props.MAX_HEIGHT || props.measuredHe || props.HMAX)} Meter</td></tr>
-                            <tr><td>Tinggi Dasar Atap</td><td>: ${formatNum(props.MIN_HEIGHT || 0)} Meter</td></tr>
                             <tr><td colspan="2" style="padding-top:8px; border-bottom:none;"><strong>Evaluasi Tata Ruang:</strong></td></tr>
                             <tr><td>KDB (Maks: ${props.KDB_MAX}%)</td><td>: ${formatNum(props.KDB)}% ${formatStatus(props.STS_KDB)}</td></tr>
                             <tr><td>KLB (Maks: ${props.KLB_MAX})</td><td>: ${formatNum(props.KLB)} ${formatStatus(props.STS_KLB)}</td></tr>
+                            <tr><td>KDH (Min: ${props.KDH_MIN}%)</td><td>: ${formatNum(props.KDH)}% ${formatStatus(props.STS_KDH)}</td></tr>
                         </table>
                     `;
                     popup.setLngLat(info.coordinate).setHTML(html).addTo(map);
@@ -246,41 +241,27 @@
     }
 
     // ==========================================
-    // LAYER PETA DASAR 2D MAPLIBRE
+    // LAYER PETA DASAR MAPLIBRE 2D
     // ==========================================
     function loadCustomLayers() {
         if (!map.getSource('zonasi')) {
             map.addSource('zonasi', { type: 'geojson', data: './GEOJESN/GEOJESN_FIX/Zonasi RDTR.geojson' });
-            map.addLayer({
-                'id': 'Zonasi RDTR', 'type': 'fill', 'source': 'zonasi',
-                'layout': { 'visibility': state.layers['Zonasi RDTR'] ? 'visible' : 'none' },
-                'paint': { 'fill-color': '#f2e8cf', 'fill-opacity': 0.6 }
-            });
+            map.addLayer({ 'id': 'Zonasi RDTR', 'type': 'fill', 'source': 'zonasi', 'layout': { 'visibility': state.layers['Zonasi RDTR'] ? 'visible' : 'none' }, 'paint': { 'fill-color': '#f2e8cf', 'fill-opacity': 0.6 } });
         }
         if (!map.getSource('lahan')) {
             map.addSource('lahan', { type: 'geojson', data: './GEOJESN/GEOJESN_FIX/Bidang Lahan.geojson' });
-            map.addLayer({
-                'id': 'Bidang Lahan', 'type': 'line', 'source': 'lahan',
-                'layout': { 'visibility': state.layers['Bidang Lahan'] ? 'visible' : 'none' },
-                'paint': { 'line-color': '#386641', 'line-width': 1.5, 'line-opacity': 0.9 }
-            });
+            map.addLayer({ 'id': 'Bidang Lahan', 'type': 'line', 'source': 'lahan', 'layout': { 'visibility': state.layers['Bidang Lahan'] ? 'visible' : 'none' }, 'paint': { 'line-color': '#386641', 'line-width': 1.5, 'line-opacity': 0.9 } });
         }
         if (!map.getSource('batas')) {
             map.addSource('batas', { type: 'geojson', data: './GEOJESN/GEOJESN_FIX/Batas Penelitian.geojson' });
-            map.addLayer({
-                'id': 'Batas Penelitian', 'type': 'line', 'source': 'batas',
-                'layout': { 'visibility': state.layers['Batas Penelitian'] ? 'visible' : 'none' },
-                'paint': { 'line-color': '#bc4749', 'line-width': 3.5 }
-            });
+            map.addLayer({ 'id': 'Batas Penelitian', 'type': 'line', 'source': 'batas', 'layout': { 'visibility': state.layers['Batas Penelitian'] ? 'visible' : 'none' }, 'paint': { 'line-color': '#bc4749', 'line-width': 3.5 } });
         }
         
-        // Panggil Deck.gl untuk merender layer bangunan di atas layer MapLibre
         renderDeckGL();
     }
 
     map.on('style.load', () => {
         loadCustomLayers();
-
         if (state.isInitialLoad) {
             fetch('./GEOJESN/GEOJESN_FIX/Batas Penelitian.geojson')
                 .then(res => res.json())
@@ -303,7 +284,7 @@
             state.layers[layerId] = isChecked; 
             
             if (layerId === 'Bangunan 3D') {
-                renderDeckGL(); // Re-render khusus layer DeckGL
+                renderDeckGL(); 
                 document.getElementById('status-radios').style.display = isChecked ? 'block' : 'none';
             } else if (map.getLayer(layerId)) {
                 map.setLayoutProperty(layerId, 'visibility', isChecked ? 'visible' : 'none');
@@ -317,18 +298,18 @@
     setupToggle('chk-lahan', 'Bidang Lahan', 'legenda-lahan');
     setupToggle('chk-bangunan', 'Bangunan 3D', 'legenda-bangunan');
 
+    // MENDENGARKAN KLIK RADIO BUTTON WARNA
     document.querySelectorAll('input[name="status"]').forEach(radio => {
         radio.addEventListener('change', (e) => {
             state.bangunanColorProp = e.target.value;
-            renderDeckGL(); // Ubah warna LOD2 DeckGL dengan cepat tanpa loading ulang
+            // Panggil ulang renderDeckGL agar membaca nilai state.bangunanColorProp yang baru
+            renderDeckGL(); 
         });
     });
 
-    // Interaksi Popup khusus layer MapLibre 2D
+    // Interaksi Popup MapLibre
     map.on('click', (e) => {
-        const features = map.queryRenderedFeatures(e.point, {
-            layers: ['Bidang Lahan', 'Zonasi RDTR', 'Batas Penelitian']
-        });
+        const features = map.queryRenderedFeatures(e.point, { layers: ['Bidang Lahan', 'Zonasi RDTR', 'Batas Penelitian'] });
         if (!features.length) return;
 
         const feature = features[0];
@@ -337,21 +318,9 @@
         let html = '';
 
         if (layerId === 'Bidang Lahan') {
-            html = `
-                <div class="popup-header"><div class="popup-title">Informasi Persil Lahan</div></div>
-                <table class="popup-table">
-                    <tr><td>NIB</td><td>: <strong>${props.NIB || '-'}</strong></td></tr>
-                    <tr><td>Status Hak</td><td>: <span class="badge-info">${props.STSKTN || '-'}</span></td></tr>
-                </table>
-            `;
+            html = `<div class="popup-header"><div class="popup-title">Informasi Persil Lahan</div></div><table class="popup-table"><tr><td>NIB</td><td>: <strong>${props.NIB || '-'}</strong></td></tr><tr><td>Status Hak</td><td>: <span class="badge-info">${props.STSKTN || '-'}</span></td></tr></table>`;
         } else if (layerId === 'Zonasi RDTR') {
-            html = `
-                <div class="popup-header"><div class="popup-title">Zona: ${props.NM_ZONA || '-'}</div></div>
-                <table class="popup-table">
-                    <tr><td>KDB Maksimal</td><td>: ${props.KDB_MAX}%</td></tr>
-                    <tr><td>KLB Maksimal</td><td>: ${props.KLB_MAX}</td></tr>
-                </table>
-            `;
+            html = `<div class="popup-header"><div class="popup-title">Zona: ${props.NM_ZONA || '-'}</div></div><table class="popup-table"><tr><td>KDB Maksimal</td><td>: ${props.KDB_MAX}%</td></tr><tr><td>KLB Maksimal</td><td>: ${props.KLB_MAX}</td></tr></table>`;
         }
         popup.setLngLat(e.lngLat).setHTML(html).addTo(map);
     });
@@ -361,7 +330,6 @@
         map.on('mouseenter', layer, () => map.getCanvas().style.cursor = 'pointer');
         map.on('mouseleave', layer, () => map.getCanvas().style.cursor = '');
     });
-
 </script>
 </body>
 </html>
