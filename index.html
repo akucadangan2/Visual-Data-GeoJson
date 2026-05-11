@@ -5,11 +5,9 @@
     <title>Visualisasi 3D WebGIS LOD2 - Teroptimasi</title>
     <meta name="viewport" content="initial-scale=1,maximum-scale=1,user-scalable=no">
     
-    <!-- Pustaka Peta Dasar -->
     <script src="https://unpkg.com/maplibre-gl@3.x/dist/maplibre-gl.js"></script>
     <link href="https://unpkg.com/maplibre-gl@3.x/dist/maplibre-gl.css" rel="stylesheet" />
     
-    <!-- Pustaka 3D & Pemrosesan Geometri -->
     <script src="https://unpkg.com/deck.gl@latest/dist.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@turf/turf@6/turf.min.js"></script>
 
@@ -44,59 +42,19 @@
 
         /* Tooltip Panel Klik yang Responsif & Bisa di-Scroll */
         #hover-tooltip {
-            position: absolute;
-            z-index: 10;
-            background: rgba(255, 255, 255, 0.98);
-            border-radius: 6px;
-            padding: 16px;
-            box-shadow: 0 5px 25px rgba(0,0,0,0.4);
-            width: 320px;
-            /* PENTING: pointer-events auto agar isi panel bisa diklik dan discroll */
-            pointer-events: auto; 
-            display: none;
-            font-family: 'Segoe UI', Tahoma, sans-serif;
-            border: 1px solid #ddd;
+            position: absolute; z-index: 10; background: rgba(255, 255, 255, 0.98); border-radius: 6px;
+            padding: 16px; box-shadow: 0 5px 25px rgba(0,0,0,0.4); width: 320px;
+            pointer-events: auto; display: none; font-family: 'Segoe UI', Tahoma, sans-serif; border: 1px solid #ddd;
         }
 
-        /* Tombol Close (X) */
-        .close-btn {
-            position: absolute;
-            top: 12px;
-            right: 15px;
-            font-size: 22px;
-            font-weight: bold;
-            color: #95a5a6;
-            cursor: pointer;
-            line-height: 1;
-            transition: color 0.2s;
-        }
-        .close-btn:hover {
-            color: #e74c3c;
-        }
-
-        .tooltip-content {
-            max-height: 300px; /* Batas tinggi untuk memicu scroll */
-            overflow-y: auto;
-            padding-right: 5px;
-            margin-top: 5px;
-        }
-
+        .close-btn { position: absolute; top: 12px; right: 15px; font-size: 22px; font-weight: bold; color: #95a5a6; cursor: pointer; line-height: 1; transition: color 0.2s; }
+        .close-btn:hover { color: #e74c3c; }
+        .tooltip-content { max-height: 300px; overflow-y: auto; padding-right: 5px; margin-top: 5px; }
         .tooltip-content::-webkit-scrollbar { width: 6px; }
         .tooltip-content::-webkit-scrollbar-thumb { background: #bdc3c7; border-radius: 4px; }
         .tooltip-content::-webkit-scrollbar-track { background: #f1f2f6; }
 
-        .section-title {
-            font-size: 11px;
-            font-weight: 700;
-            color: #2980b9;
-            margin-top: 12px;
-            margin-bottom: 4px;
-            padding-bottom: 2px;
-            border-bottom: 1px solid #ecf0f1;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-        }
-
+        .section-title { font-size: 11px; font-weight: 700; color: #2980b9; margin-top: 12px; margin-bottom: 4px; padding-bottom: 2px; border-bottom: 1px solid #ecf0f1; text-transform: uppercase; letter-spacing: 0.5px; }
         .popup-header { margin: 0 0 8px; color: #2c3e50; border-bottom: 1px solid #eee; padding-bottom: 8px; padding-right: 15px; }
         .popup-title { font-size: 14px; font-weight: bold; margin: 0 0 2px 0; line-height: 1.2; }
         .popup-subtitle { color: #7f8c8d; font-size: 11px; font-style: italic; margin: 0;}
@@ -118,12 +76,13 @@
         <option value="https://basemaps.cartocdn.com/gl/voyager-gl-style/style.json">Satelit / Berwarna (Voyager)</option>
         <option value="https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json">Gelap (Dark Matter)</option>
         <option value="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json">Terang (Positron)</option>
+        <option value="no-map">Tanpa Peta Dasar (Kanvas Kosong)</option>
     </select>
 
     <h3 class="panel-title">Pengaturan Peta</h3>
     <label class="item-row"><input type="checkbox" id="chk-batas" checked> Batas Penelitian</label>
     <label class="item-row"><input type="checkbox" id="chk-zonasi"> Zonasi RDTR</label>
-    <label class="item-row"><input type="checkbox" id="chk-lahan"> Bidang Lahan</label>
+    <label class="item-row"><input type="checkbox" id="chk-lahan" checked> Bidang Lahan</label>
     <label class="item-row"><input type="checkbox" id="chk-bangunan" checked> Bangunan LOD2 (Bisa Diklik)</label>
 
     <div id="status-radios" style="display: block;">
@@ -143,10 +102,12 @@
     <div id="legenda-zonasi" class="legend-section">
         <div class="legend-title">Zonasi RDTR</div>
         <div class="item-row"><span class="legend-box" style="background-color: #f2e8cf;"></span> Area Zonasi Tata Ruang</div>
+        <div class="item-row"><span class="legend-line" style="background-color: #d4c08e;"></span> Batas Zonasi</div>
     </div>
-    <div id="legenda-lahan" class="legend-section">
+    <div id="legenda-lahan" class="legend-section" style="display: block;">
         <div class="legend-title">Bidang Lahan</div>
-        <div class="item-row"><span class="legend-line" style="background-color: #386641;"></span> Batas Persil (Hak Tanah)</div>
+        <div class="item-row"><span class="legend-box" style="background-color: #81b29a; opacity: 0.5;"></span> Area Persil</div>
+        <div class="item-row"><span class="legend-line" style="background-color: #386641;"></span> Batas Persil</div>
     </div>
     <div id="legenda-bangunan" class="legend-section" style="display: block;">
         <div class="legend-title">Evaluasi Bangunan</div>
@@ -156,20 +117,23 @@
     </div>
 </div>
 
-<!-- Kotak Tooltip Interaktif -->
 <div id="hover-tooltip"></div>
-
 <div id="map"></div>
 
 <script>
+    const blankStyle = {
+        version: 8, sources: {}, layers: [{ id: 'background', type: 'background', paint: { 'background-color': '#e8ecef' } }]
+    };
+
     const state = {
-        layers: { 'Batas Penelitian': true, 'Zonasi RDTR': false, 'Bidang Lahan': false, 'Bangunan 3D': true },
+        layers: { 'Batas Penelitian': true, 'Zonasi RDTR': false, 'Bidang Lahan': true, 'Bangunan 3D': true },
         bangunanColorProp: 'default',
         isInitialLoad: true
     };
 
     const map = new maplibregl.Map({
-        container: 'map', style: document.getElementById('basemap-selector').value,
+        container: 'map', 
+        style: document.getElementById('basemap-selector').value,
         center: [107.61, -6.91], zoom: 16, pitch: 65, bearing: -35, antialias: true          
     });
 
@@ -183,13 +147,10 @@
         return val.toLowerCase().includes('tidak') ? `<span class="tag-tidak">TIDAK SESUAI</span>` : `<span class="tag-sesuai">SESUAI</span>`;
     };
 
-    // Fungsi global untuk menutup tooltip dari tombol X
-    window.closeTooltip = function() {
-        tooltipElem.style.display = 'none';
-    };
+    window.closeTooltip = function() { tooltipElem.style.display = 'none'; };
 
     // ==========================================
-    // DECK.GL: LOD2 RENDERER
+    // DECK.GL: LOD2 RENDERER (PERBAIKAN BANGUNAN MELAYANG TETAP ADA)
     // ==========================================
     let deckOverlay;
     let cachedBangunanData = null; 
@@ -203,21 +164,13 @@
         fetch('./GEOJESN/GEOJESN_FIX/Bangunan_Kajian.geojson')
             .then(res => res.json())
             .then(data => {
-                let minZ = Infinity;
-                turf.coordEach(data, (coord) => {
-                    if (coord.length > 2 && coord[2] < minZ) {
-                        minZ = coord[2];
+                data.features.forEach(feature => {
+                    let minZ = Infinity;
+                    turf.coordEach(feature, (coord) => { if (coord.length > 2 && coord[2] < minZ) minZ = coord[2]; });
+                    if (minZ !== Infinity) {
+                        turf.coordEach(feature, (coord) => { if (coord.length > 2) coord[2] -= minZ; });
                     }
                 });
-
-                if (minZ === Infinity) minZ = 0;
-
-                turf.coordEach(data, (coord) => {
-                    if (coord.length > 2) {
-                        coord[2] -= minZ;
-                    }
-                });
-
                 cachedBangunanData = data;
                 updateDeckLayer();
             })
@@ -226,43 +179,22 @@
 
     function updateDeckLayer() {
         const activeProp = state.bangunanColorProp;
-
         const bangunanLayer = new deck.GeoJsonLayer({
             id: 'bangunan-lod2-deck',
             data: cachedBangunanData,
             visible: state.layers['Bangunan 3D'],
-            
-            opacity: 1.0, 
-            stroked: true,
-            filled: true,
-            extruded: false, 
-            wireframe: true,
-            getLineColor: [255, 255, 255, 100], 
-            lineWidthMinPixels: 1,
-
+            opacity: 1.0, stroked: true, filled: true, extruded: false, wireframe: true,
+            getLineColor: [255, 255, 255, 100], lineWidthMinPixels: 1,
             getFillColor: d => {
-                if (activeProp === 'default') {
-                    return [149, 165, 166, 255]; 
-                }
+                if (activeProp === 'default') return [149, 165, 166, 255]; 
                 const val = d.properties[activeProp];
-                if (val && val.toLowerCase().includes('tidak')) {
-                    return [231, 76, 60, 255]; 
-                } else if (val && val.toLowerCase().includes('sesuai')) {
-                    return [46, 204, 113, 255]; 
-                }
+                if (val && val.toLowerCase().includes('tidak')) return [231, 76, 60, 255]; 
+                if (val && val.toLowerCase().includes('sesuai')) return [46, 204, 113, 255]; 
                 return [189, 195, 199, 255]; 
             },
+            updateTriggers: { getFillColor: [activeProp] },
+            pickable: true, autoHighlight: true, highlightColor: [241, 196, 15, 200], 
             
-            updateTriggers: {
-                getFillColor: [activeProp] 
-            },
-
-            // --- INTERAKSI MOUSE & KLIK ---
-            pickable: true,
-            autoHighlight: true, 
-            highlightColor: [241, 196, 15, 200], 
-            
-            // Event klik memunculkan informasi lengkap dan menahannya
             onClick: (info) => {
                 if (info.object) {
                     const props = info.object.properties;
@@ -270,12 +202,10 @@
                     
                     tooltipElem.innerHTML = `
                         <span class="close-btn" onclick="window.closeTooltip()">&times;</span>
-                        
                         <div class="popup-header">
                             <div class="popup-title">${props.NAMOBJ || 'Bangunan LOD2'}</div>
                             <div class="popup-subtitle">${props.REMARK || 'Fungsi tidak tersedia'} | ${bagian}</div>
                         </div>
-                        
                         <div class="tooltip-content">
                             <div class="section-title">Identitas & Administrasi</div>
                             <table class="popup-table">
@@ -283,7 +213,6 @@
                                 <tr><td>Lokasi</td><td>: Kec. ${props.WADMKC || '-'}, ${props.WADMKK || '-'}</td></tr>
                                 <tr><td>Status Hak</td><td>: <span class="badge-info">${props.STSKTN || '-'}</span></td></tr>
                             </table>
-
                             <div class="section-title">Dimensi Fisik Bangunan</div>
                             <table class="popup-table">
                                 <tr><td>Luas Tanah</td><td>: ${formatNum(props.LUAS_TNH)} m²</td></tr>
@@ -292,14 +221,12 @@
                                 <tr><td>Jumlah Lantai</td><td>: ${props.JML_LT || '-'} Lt (@ ${formatNum(props.T_LANTAI)} m)</td></tr>
                                 <tr><td>Tinggi Puncak</td><td>: ${formatNum(props.MAX_HEIGHT || props.measuredHe || props.HMAX)} m</td></tr>
                             </table>
-
                             <div class="section-title">Zonasi & Tata Ruang</div>
                             <table class="popup-table">
                                 <tr><td>Peraturan</td><td>: ${props.PERATUR || '-'}</td></tr>
                                 <tr><td>Zona Dasar</td><td>: ${props.NM_ZONA || '-'} (${props.KD_ZONA || '-'})</td></tr>
                                 <tr><td>Sub Zona</td><td>: ${props.NM_SUBZON || '-'} (${props.KD_SUBZON || '-'})</td></tr>
                             </table>
-
                             <div class="section-title">Evaluasi Intensitas Pemanfaatan Ruang</div>
                             <table class="popup-table">
                                 <tr><td>KDB (Maks: ${props.KDB_MAX}%)</td><td>: ${formatNum(props.KDB)}% ${formatStatus(props.STS_KDB)}</td></tr>
@@ -311,30 +238,20 @@
                     `;
                     
                     tooltipElem.style.display = 'block';
-                    
-                    // Posisikan saat diklik
                     const offset = 15;
                     let leftPos = info.x + offset;
                     let topPos = info.y + offset;
                     
-                    if (leftPos + 320 > window.innerWidth) { leftPos = info.x - 335; }
-                    if (topPos + 360 > window.innerHeight) { topPos = window.innerHeight - 375; }
+                    if (leftPos + 320 > window.innerWidth) leftPos = info.x - 335;
+                    if (topPos + 360 > window.innerHeight) topPos = window.innerHeight - 375;
                     
                     tooltipElem.style.left = leftPos + 'px';
                     tooltipElem.style.top = topPos + 'px';
                 } else {
-                    // Klik di luar bangunan akan menutup tooltip otomatis
                     tooltipElem.style.display = 'none';
                 }
             },
-            // Hanya ganti kursor saat sorot, panel tidak lagi muncul saat hover
-            onHover: (info) => {
-                if (info.object) {
-                    map.getCanvas().style.cursor = 'pointer';
-                } else {
-                    map.getCanvas().style.cursor = '';
-                }
-            }
+            onHover: (info) => { map.getCanvas().style.cursor = info.object ? 'pointer' : ''; }
         });
 
         if (!deckOverlay) {
@@ -346,25 +263,37 @@
     }
 
     // ==========================================
-    // LAYER PETA DASAR MAPLIBRE 2D
+    // LAYER PETA DASAR MAPLIBRE 2D 
     // ==========================================
     function loadCustomLayers() {
-        if (!map.getSource('zonasi')) {
-            map.addSource('zonasi', { type: 'geojson', data: './GEOJESN/GEOJESN_FIX/Zonasi RDTR.geojson' });
-            map.addLayer({ 'id': 'Zonasi RDTR', 'type': 'fill', 'source': 'zonasi', 'layout': { 'visibility': state.layers['Zonasi RDTR'] ? 'visible' : 'none' }, 'paint': { 'fill-color': '#f2e8cf', 'fill-opacity': 0.6 } });
+        // 1. Daftarkan Source Ulang 
+        if (!map.getSource('zonasi')) map.addSource('zonasi', { type: 'geojson', data: './GEOJESN/GEOJESN_FIX/Zonasi RDTR.geojson' });
+        if (!map.getSource('lahan')) map.addSource('lahan', { type: 'geojson', data: './GEOJESN/GEOJESN_FIX/Bidang Lahan.geojson' });
+        if (!map.getSource('batas')) map.addSource('batas', { type: 'geojson', data: './GEOJESN/GEOJESN_FIX/Batas Penelitian.geojson' });
+
+        // PERBAIKAN: Zonasi RDTR dipecah menjadi Fill dan Line agar memiliki garis batas
+        if (!map.getLayer('Zonasi RDTR Fill')) {
+            map.addLayer({ 'id': 'Zonasi RDTR Fill', 'type': 'fill', 'source': 'zonasi', 'layout': { 'visibility': state.layers['Zonasi RDTR'] ? 'visible' : 'none' }, 'paint': { 'fill-color': '#f2e8cf', 'fill-opacity': 0.6 } });
         }
-        if (!map.getSource('lahan')) {
-            map.addSource('lahan', { type: 'geojson', data: './GEOJESN/GEOJESN_FIX/Bidang Lahan.geojson' });
-            map.addLayer({ 'id': 'Bidang Lahan', 'type': 'line', 'source': 'lahan', 'layout': { 'visibility': state.layers['Bidang Lahan'] ? 'visible' : 'none' }, 'paint': { 'line-color': '#386641', 'line-width': 1.5, 'line-opacity': 0.9 } });
+        if (!map.getLayer('Zonasi RDTR Line')) {
+            map.addLayer({ 'id': 'Zonasi RDTR Line', 'type': 'line', 'source': 'zonasi', 'layout': { 'visibility': state.layers['Zonasi RDTR'] ? 'visible' : 'none' }, 'paint': { 'line-color': '#d4c08e', 'line-width': 1.5, 'line-opacity': 0.9 } });
         }
-        if (!map.getSource('batas')) {
-            map.addSource('batas', { type: 'geojson', data: './GEOJESN/GEOJESN_FIX/Batas Penelitian.geojson' });
+        
+        if (!map.getLayer('Bidang Lahan Fill')) {
+            map.addLayer({ 'id': 'Bidang Lahan Fill', 'type': 'fill', 'source': 'lahan', 'layout': { 'visibility': state.layers['Bidang Lahan'] ? 'visible' : 'none' }, 'paint': { 'fill-color': '#81b29a', 'fill-opacity': 0.3 } });
+        }
+        if (!map.getLayer('Bidang Lahan Line')) {
+            map.addLayer({ 'id': 'Bidang Lahan Line', 'type': 'line', 'source': 'lahan', 'layout': { 'visibility': state.layers['Bidang Lahan'] ? 'visible' : 'none' }, 'paint': { 'line-color': '#386641', 'line-width': 1.5, 'line-opacity': 0.9 } });
+        }
+
+        if (!map.getLayer('Batas Penelitian')) {
             map.addLayer({ 'id': 'Batas Penelitian', 'type': 'line', 'source': 'batas', 'layout': { 'visibility': state.layers['Batas Penelitian'] ? 'visible' : 'none' }, 'paint': { 'line-color': '#bc4749', 'line-width': 3.5 } });
         }
         
         renderDeckGL();
     }
 
+    // Pemicu saat map pertama atau style selesai dimuat ulang (karena ganti basemap)
     map.on('style.load', () => {
         loadCustomLayers();
         if (state.isInitialLoad) {
@@ -378,9 +307,15 @@
         }
     });
 
+    // Mengganti Base Map atau Kanvas Kosong
+    // PERBAIKAN: Event load dihapus dari sini agar MapLibre menanganinya otomatis di event 'style.load' global
     document.getElementById('basemap-selector').addEventListener('change', function(e) {
-        map.setStyle(e.target.value); 
-        map.once('style.load', () => { loadCustomLayers(); });
+        const selectedValue = e.target.value;
+        if (selectedValue === 'no-map') {
+            map.setStyle(blankStyle);
+        } else {
+            map.setStyle(selectedValue);
+        }
     });
 
     function setupToggle(checkboxId, layerId, legendId) {
@@ -391,6 +326,13 @@
             if (layerId === 'Bangunan 3D') {
                 renderDeckGL(); 
                 document.getElementById('status-radios').style.display = isChecked ? 'block' : 'none';
+            } else if (layerId === 'Bidang Lahan') {
+                if (map.getLayer('Bidang Lahan Fill')) map.setLayoutProperty('Bidang Lahan Fill', 'visibility', isChecked ? 'visible' : 'none');
+                if (map.getLayer('Bidang Lahan Line')) map.setLayoutProperty('Bidang Lahan Line', 'visibility', isChecked ? 'visible' : 'none');
+            } else if (layerId === 'Zonasi RDTR') {
+                // Toggle untuk Zonasi Fill dan Line
+                if (map.getLayer('Zonasi RDTR Fill')) map.setLayoutProperty('Zonasi RDTR Fill', 'visibility', isChecked ? 'visible' : 'none');
+                if (map.getLayer('Zonasi RDTR Line')) map.setLayoutProperty('Zonasi RDTR Line', 'visibility', isChecked ? 'visible' : 'none');
             } else if (map.getLayer(layerId)) {
                 map.setLayoutProperty(layerId, 'visibility', isChecked ? 'visible' : 'none');
             }
@@ -410,9 +352,9 @@
         });
     });
 
-    // Interaksi Popup MapLibre (Khusus Layer 2D)
+    // Interaksi Popup MapLibre (Diletakkan di luar loadCustomLayers agar tidak menumpuk saat map diganti)
     map.on('click', (e) => {
-        const features = map.queryRenderedFeatures(e.point, { layers: ['Bidang Lahan', 'Zonasi RDTR', 'Batas Penelitian'] });
+        const features = map.queryRenderedFeatures(e.point, { layers: ['Bidang Lahan Fill', 'Zonasi RDTR Fill', 'Batas Penelitian'] });
         if (!features.length) return;
 
         const feature = features[0];
@@ -420,19 +362,21 @@
         const layerId = feature.layer.id;
         let html = '';
 
-        if (layerId === 'Bidang Lahan') {
+        if (layerId === 'Bidang Lahan Fill') {
             html = `<div class="popup-header"><div class="popup-title">Informasi Persil Lahan</div></div><table class="popup-table"><tr><td>NIB</td><td>: <strong>${props.NIB || '-'}</strong></td></tr><tr><td>Status Hak</td><td>: <span class="badge-info">${props.STSKTN || '-'}</span></td></tr></table>`;
-        } else if (layerId === 'Zonasi RDTR') {
+        } else if (layerId === 'Zonasi RDTR Fill') {
             html = `<div class="popup-header"><div class="popup-title">Zona: ${props.NM_ZONA || '-'}</div></div><table class="popup-table"><tr><td>KDB Maksimal</td><td>: ${props.KDB_MAX}%</td></tr><tr><td>KLB Maksimal</td><td>: ${props.KLB_MAX}</td></tr></table>`;
         }
-        maplibrePopup.setLngLat(e.lngLat).setHTML(html).addTo(map);
+        
+        if (html) maplibrePopup.setLngLat(e.lngLat).setHTML(html).addTo(map);
     });
 
-    const interactiveLayers = ['Bidang Lahan', 'Zonasi RDTR', 'Batas Penelitian'];
+    const interactiveLayers = ['Bidang Lahan Fill', 'Zonasi RDTR Fill', 'Batas Penelitian'];
     interactiveLayers.forEach(layer => {
         map.on('mouseenter', layer, () => map.getCanvas().style.cursor = 'pointer');
         map.on('mouseleave', layer, () => map.getCanvas().style.cursor = '');
     });
+
 </script>
 </body>
 </html>
